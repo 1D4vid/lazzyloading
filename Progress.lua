@@ -34,7 +34,7 @@ return function(env)
     local DoorProgLoop = nil
     local DoorProgHeartbeat = nil
     local trackedNormalDoors = {}
-    local DT_CONFIG = { VISIBILITY_DISTANCE = 75, DOOR_NAMES = {["SingleDoor"]=true,["DoubleDoor"]=true,["SlidingDoor"]=true}, BLACKLIST = {["ExitDoor"]=true,["Decorative"]=true,["FakeDoor"]=true,["ElevatorDoor"]=true,["Closet"]=false} }
+    local DT_CONFIG = { VISIBILITY_DISTANCE = 75, DOOR_NAMES = {["SingleDoor"]=true,["DoubleDoor"]=true,["SlidingDoor"]=true}, BLACKLIST = {["ExitDoor"]=true,["Decorative"]=true,["FakeDoor"]=true,["ElevatorDoor"]=true, ["Closet"]=false} }
     local DT_COLORS = { 
         BAR_BG = Color3.fromRGB(35, 30, 30), 
         MUSTARD = Color3.fromRGB(205, 135, 25), 
@@ -49,8 +49,6 @@ return function(env)
     local ExitDoorAdded = nil
     local ExitDoorRemoving = nil
     local trackedExitDoors = {}
-    local modulesCache = {}
-    local modulesAttempted = {}
     local actionValCache = {}
     
     -- Vars Beast Spawn Timer
@@ -479,28 +477,22 @@ return function(env)
         end
     end)
     
-    -- 3. ExitDoor Progress (CORRIGIDO)
+    -- 3. ExitDoor Progress
     Library:CreateToggle(ProgressPage, "ExitDoor Progress", false, function(state) 
         if state then
+            local guiName = "FTF_ExitDoorESP_Premium"
+            local targetGuiParent = (pcall(function() return CoreGui end) and CoreGui) or LocalPlayer:WaitForChild("PlayerGui")
+            
+            if targetGuiParent:FindFirstChild(guiName) then
+                targetGuiParent[guiName]:Destroy()
+            end
+
+            local folder = Instance.new("Folder")
+            folder.Name = guiName
+            folder.Parent = targetGuiParent
+
+            -- LÊ OS VALORES DIRETAMENTE PARA NÃO DAR REQUIRE() E NÃO QUEBRAR O JOGO
             local function getPlayerProgress(plr)
-                if not modulesCache[plr] and not modulesAttempted[plr] then
-                    local module = plr:FindFirstChild("TempPlayerStatsModule")
-                    if module then
-                        modulesAttempted[plr] = true
-                        pcall(function()
-                            modulesCache[plr] = require(module)
-                        end)
-                    end
-                end
-                
-                local stats = modulesCache[plr]
-                if stats then
-                    local success, val = pcall(stats.GetValue, "ActionProgress")
-                    if success and type(val) == "number" and val > 0 then 
-                        return val 
-                    end
-                end
-                
                 local actionVal = actionValCache[plr]
                 if not actionVal or not actionVal.Parent then
                     actionVal = plr:FindFirstChild("ActionProgress", true)
@@ -519,8 +511,6 @@ return function(env)
             end
 
             ExitDoorRemoving = Players.PlayerRemoving:Connect(function(plr)
-                modulesCache[plr] = nil
-                modulesAttempted[plr] = nil
                 actionValCache[plr] = nil
             end)
 
@@ -558,7 +548,6 @@ return function(env)
                     end
                 end
 
-                -- Criamos o highlight parentado diretamente na porta, evita o bug do Folder
                 local highlight = Instance.new("Highlight")
                 highlight.Name = "ExitDoorHighlight"
                 highlight.Adornee = door
@@ -567,17 +556,15 @@ return function(env)
                 highlight.FillTransparency = 0.55
                 highlight.OutlineTransparency = 0
                 highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                highlight.Parent = door
+                highlight.Parent = folder
 
-                -- Criamos o billboard parentado diretamente na parte, evita o bug do Folder
                 local bgui = Instance.new("BillboardGui")
                 bgui.Name = "UI"
                 bgui.Size = UDim2.new(0, 140, 0, 45) 
                 bgui.StudsOffset = Vector3.new(0, 5, 0)
                 bgui.AlwaysOnTop = true
                 bgui.Adornee = mainPart
-                bgui.Active = false
-                bgui.Parent = mainPart
+                bgui.Parent = folder
                 
                 local txt = Instance.new("TextLabel", bgui)
                 txt.Name = "Text"
@@ -787,16 +774,9 @@ return function(env)
             if ExitDoorRemoving then ExitDoorRemoving:Disconnect(); ExitDoorRemoving = nil end
             if ExitDoorAdded then ExitDoorAdded:Disconnect(); ExitDoorAdded = nil end
             if ExitDoorConn then task.cancel(ExitDoorConn); ExitDoorConn = nil end
-            
-            -- Limpeza adaptada para deletar os itens parentados direto nas portas
-            for door, data in pairs(trackedExitDoors) do
-                if data.UI then data.UI:Destroy() end
-                if data.Highlight then data.Highlight:Destroy() end
-            end
-            
+            local targetGuiParent = (pcall(function() return CoreGui end) and CoreGui) or LocalPlayer:WaitForChild("PlayerGui")
+            if targetGuiParent:FindFirstChild("FTF_ExitDoorESP_Premium") then targetGuiParent.FTF_ExitDoorESP_Premium:Destroy() end
             table.clear(trackedExitDoors)
-            table.clear(modulesCache)
-            table.clear(modulesAttempted)
             table.clear(actionValCache)
         end
     end)
@@ -1082,7 +1062,7 @@ return function(env)
     end)
     
     -- 6. Beast Power Timer V2
-    Library:CreateToggle(ProgressPage, "Beast Power Timer V2", false, function(state) 
+	Library:CreateToggle(ProgressPage, "Beast Power Timer V2", false, function(state) 
         local function CreateLabelBP(player)
             local character = player.Character
             if character then
@@ -1151,7 +1131,7 @@ return function(env)
         end
     end)
 
-    -- 7. Beast Spawn Timer (CORRIGIDO)
+    -- 7. Beast Spawn Timer
     Library:CreateToggle(ProgressPage, "Beast Spawn Timer", false, function(state)
         if state then
             local BEAST_RELEASE_TIME = 16 
@@ -1160,7 +1140,6 @@ return function(env)
             local sg = Instance.new("ScreenGui")
             sg.Name = "ElegantBeastTimer"
             sg.DisplayOrder = 999
-            sg.ResetOnSpawn = false
             local targetGuiParent = (pcall(function() return CoreGui end) and CoreGui) or LocalPlayer:WaitForChild("PlayerGui")
             sg.Parent = targetGuiParent
             
@@ -1175,9 +1154,6 @@ return function(env)
             label.TextColor3 = Color3.fromRGB(255, 255, 255)
             label.TextTransparency = 1 
             label.Text = ""
-            label.Active = false      -- Impede de roubar o foco do clique
-            label.Interactable = false -- Previne interação com o mouse
-            label.Visible = false      -- Completamente ignorado pelo mouse se não estiver na tela
             label.Parent = sg
             
             local stroke = Instance.new("UIStroke")
@@ -1187,21 +1163,13 @@ return function(env)
             stroke.Parent = label
             
             local function FadeIn()
-                label.Visible = true
                 TweenService:Create(label, TweenInfo.new(0.8, Enum.EasingStyle.Sine), {TextTransparency = 0}):Play()
                 TweenService:Create(stroke, TweenInfo.new(0.8, Enum.EasingStyle.Sine), {Transparency = 0.3}):Play()
             end
             
             local function FadeOut()
-                local tweenText = TweenService:Create(label, TweenInfo.new(0.8, Enum.EasingStyle.Sine), {TextTransparency = 1})
-                tweenText:Play()
+                TweenService:Create(label, TweenInfo.new(0.8, Enum.EasingStyle.Sine), {TextTransparency = 1}):Play()
                 TweenService:Create(stroke, TweenInfo.new(0.8, Enum.EasingStyle.Sine), {Transparency = 1}):Play()
-                
-                tweenText.Completed:Connect(function()
-                    if label.TextTransparency >= 0.99 then
-                        label.Visible = false
-                    end
-                end)
             end
             
             local function TweenColor(color)
@@ -1214,13 +1182,11 @@ return function(env)
             local roundActive = false
             local isRed = false
             
+            -- LÊ O VALOR DIRETAMENTE PARA NÃO DAR REQUIRE() E NÃO QUEBRAR O JOGO
             local function IsBeast()
-                local statsModule = LocalPlayer:FindFirstChild("TempPlayerStatsModule")
-                if statsModule then
-                    local success, stats = pcall(function() return require(statsModule) end)
-                    if success and stats then
-                        return stats.IsBeast
-                    end
+                local isBeastVal = LocalPlayer:FindFirstChild("IsBeast", true)
+                if isBeastVal and isBeastVal:IsA("BoolValue") then
+                    return isBeastVal.Value
                 end
                 return false
             end
@@ -1236,7 +1202,6 @@ return function(env)
                         roundActive = false
                         label.TextTransparency = 1
                         stroke.Transparency = 1
-                        label.Visible = false
                     end
                     return
                 end
@@ -1289,7 +1254,6 @@ return function(env)
                 isCounting = false
                 label.TextTransparency = 1
                 stroke.Transparency = 1
-                label.Visible = false
             end)
         else
             if BeastSpawnConn then BeastSpawnConn:Disconnect(); BeastSpawnConn = nil end
